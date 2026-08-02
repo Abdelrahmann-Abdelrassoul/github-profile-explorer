@@ -1,26 +1,146 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Dark mode follows the OS setting rather than a `.dark` class.
+ *
+ * shadcn's default variant keys off a `.dark` class, which nothing sets — without a
+ * theme toggle every `dark:` utility would be permanently dead. Binding the variant to
+ * the media query keeps shadcn's own components correct with no JS and no flash of the
+ * wrong theme. Swap to next-themes here if task 8 wants a manual toggle.
+ */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-space-grotesk);
+  /* Language spine / distribution bar read their color from inline data, not tokens. */
+  --color-lang-unknown: var(--muted-foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Palette — "language as the only color".
+ *
+ * The chrome is deliberately near-neutral cool slate so that GitHub's real language
+ * colors, which are injected inline from data, are the only saturated thing on screen.
+ * The single petrol accent is reserved for focus rings and the primary action.
+ */
+:root {
+  --background: oklch(0.9759 0.0029 264.54); /* paper  #F6F7F9 */
+  --foreground: oklch(0.1933 0.0102 248.36); /* ink    #111519 */
+  --card: oklch(1 0 0); /* surface #FFFFFF */
+  --card-foreground: oklch(0.1933 0.0102 248.36);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1933 0.0102 248.36);
+  --primary: oklch(0.4888 0.0804 194.84); /* petrol #0D6E6E */
+  --primary-foreground: oklch(0.9878 0.002 247);
+  --secondary: oklch(0.9459 0.0043 250);
+  --secondary-foreground: oklch(0.1933 0.0102 248.36);
+  --muted: oklch(0.9459 0.0043 250);
+  --muted-foreground: oklch(0.4951 0.0215 250.78); /* #59636E */
+  --accent: oklch(0.9459 0.0043 250);
+  --accent-foreground: oklch(0.1933 0.0102 248.36);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.9142 0.0081 253.86); /* line #DFE3E8 */
+  --input: oklch(0.9142 0.0081 253.86);
+  --ring: oklch(0.4888 0.0804 194.84); /* focus = petrol */
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: oklch(0.1798 0.0104 248.41); /* paper   #0E1216 */
+    --foreground: oklch(0.9412 0.0069 247.9); /* ink     #E8ECF0 */
+    --card: oklch(0.2197 0.014 253.12); /* surface #161B21 */
+    --card-foreground: oklch(0.9412 0.0069 247.9);
+    --popover: oklch(0.2197 0.014 253.12);
+    --popover-foreground: oklch(0.9412 0.0069 247.9);
+    --primary: oklch(0.6623 0.1013 194.99); /* petrol  #2FA6A6 */
+    --primary-foreground: oklch(0.1798 0.0104 248.41);
+    --secondary: oklch(0.2898 0.0177 251.89);
+    --secondary-foreground: oklch(0.9412 0.0069 247.9);
+    --muted: oklch(0.2898 0.0177 251.89);
+    --muted-foreground: oklch(0.6682 0.0219 250.48); /* #8B96A2 */
+    --accent: oklch(0.2898 0.0177 251.89);
+    --accent-foreground: oklch(0.9412 0.0069 247.9);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(0.2898 0.0177 251.89); /* line #252C34 */
+    --input: oklch(0.2898 0.0177 251.89);
+    --ring: oklch(0.6623 0.1013 194.99);
+
+    /* Unused by task 2 (no sidebar or charts yet); kept so the theme stays coherent. */
+    --sidebar: oklch(0.2197 0.014 253.12);
+    --sidebar-foreground: oklch(0.9412 0.0069 247.9);
+    --sidebar-primary: oklch(0.6623 0.1013 194.99);
+    --sidebar-primary-foreground: oklch(0.1798 0.0104 248.41);
+    --sidebar-accent: oklch(0.2898 0.0177 251.89);
+    --sidebar-accent-foreground: oklch(0.9412 0.0069 247.9);
+    --sidebar-border: oklch(0.2898 0.0177 251.89);
+    --sidebar-ring: oklch(0.6623 0.1013 194.99);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

@@ -8,7 +8,7 @@ approve, implement, review the diff, commit, then move to the next.
       placeholder and gets replaced by the search page in task 2)
 - [x] 1. `lib/server/github.ts`: authenticated GitHub API wrapper (user, repos, readme,
       contents, commits) with error handling for 404 / rate-limit
-- [ ] 2. `/` search page → `/u/[username]` profile page: avatar, bio, stats, repo list
+- [x] 2. `/` search page → `/u/[username]` profile page: avatar, bio, stats, repo list
       (with loading + not-found states)
 - [ ] 3. Compare feature: `/u/[username]/compare/[otherUsername]`
 - [ ] 4. AI profile summary (server route + UI trigger on the profile page)
