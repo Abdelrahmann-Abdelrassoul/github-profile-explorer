@@ -107,7 +107,8 @@ function requireToken(): string {
   if (!token) {
     throw new GitHubError(
       "config",
-      "GITHUB_TOKEN is not set. Copy .env.example to .env.local and add a GitHub personal access token.",
+      "GITHUB_TOKEN is not set. Locally, copy .env.example to .env.local and add a GitHub " +
+        "personal access token; when deployed, set GITHUB_TOKEN in the host's environment variables.",
     );
   }
   return token;
