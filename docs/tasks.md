@@ -6,7 +6,7 @@ approve, implement, review the diff, commit, then move to the next.
 - [x] 0. Scaffold: Next.js + TypeScript app, Tailwind, basic layout, `.env.example`
       (Next 16 + React 19 + Tailwind v4; `app/page.tsx` is still the create-next-app
       placeholder and gets replaced by the search page in task 2)
-- [ ] 1. `lib/server/github.ts`: authenticated GitHub API wrapper (user, repos, readme,
+- [x] 1. `lib/server/github.ts`: authenticated GitHub API wrapper (user, repos, readme,
       contents, commits) with error handling for 404 / rate-limit
 - [ ] 2. `/` search page → `/u/[username]` profile page: avatar, bio, stats, repo list
       (with loading + not-found states)
