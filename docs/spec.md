@@ -40,9 +40,11 @@ data), and save notes — deployed on Vercel.
 
 ## Feature: AI profile summary
 - Server route takes a username, gathers profile + repo list (already fetched), sends a
-  structured prompt to Gemini ("summarize this developer's public GitHub presence: primary
+  structured prompt to the model ("summarize this developer's public GitHub presence: primary
   languages, activity level, notable repos"), returns text. Can be non-streaming (it's a single
   short summary, not a long chat) or streamed for a nicer UX — your call.
+  **Built streaming**, since the repo chat below needs streaming anyway and this proves the
+  transport on a smaller surface first.
 
 ## Feature: AI chat grounded in repo data
 This is the most involved feature — the grounding requirement is explicit, don't skip it.
@@ -53,9 +55,15 @@ This is the most involved feature — the grounding requirement is explicit, don
   prompt) is sufficient — these are small enough for most repos. If a repo's README or file tree
   is unusually large, truncate and note the truncation rather than trying to build a full RAG
   pipeline; that's out of scope for "keep it simple."
-- Use the Vercel AI SDK (`ai` package + `@ai-sdk/google`) against Gemini 2.5 Flash for the
-  streaming response — this gets you the streaming requirement essentially for free, and stays
-  on Google's free tier (no credit card, ~1,500 requests/day).
+- Use the Vercel AI SDK (`ai` package) for the streaming response — this gets you the
+  streaming requirement essentially for free.
+- **Provider changed during build: Groq (`@ai-sdk/groq`, `llama-3.3-70b-versatile`), not
+  Gemini.** This spec originally specified `@ai-sdk/google` with Gemini 2.5 Flash on the
+  grounds that it was free with no credit card. That premise stopped holding — the key
+  returned `403 PERMISSION_DENIED` and the project required billing. Groq's free tier needs
+  only an email and comfortably covers this app's usage. The requirement being satisfied is
+  unchanged; only the provider moved, and because everything goes through the AI SDK the
+  switch was one file (`lib/server/ai.ts`) plus an env var.
 - Conversation history persists **per repo** — see Persistence below.
 
 ## Persistence: Notes and chat history

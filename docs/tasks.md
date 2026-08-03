@@ -11,7 +11,9 @@ approve, implement, review the diff, commit, then move to the next.
 - [x] 2. `/` search page → `/u/[username]` profile page: avatar, bio, stats, repo list
       (with loading + not-found states)
 - [x] 3. Compare feature: `/u/[username]/compare/[otherUsername]`
-- [ ] 4. AI profile summary (server route + UI trigger on the profile page)
+- [x] 4. AI profile summary (server route + UI trigger on the profile page)
+      (uses Groq, not Gemini — see CLAUDE.md; the spec's "free, no credit card"
+      premise no longer held for Gemini)
 - [ ] 5. AI repo chat: grounding data fetch + Vercel AI SDK streaming + chat UI
 - [ ] 6. Chat history persistence (localStorage, per repo)
 - [ ] 7. Notes feature (profiles + repos), localStorage, shown on load
