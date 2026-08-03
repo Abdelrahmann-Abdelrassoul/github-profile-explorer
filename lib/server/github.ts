@@ -107,10 +107,34 @@ function requireToken(): string {
   if (!token) {
     throw new GitHubError(
       "config",
-      "GITHUB_TOKEN is not set. Copy .env.example to .env.local and add a GitHub personal access token.",
+      "GITHUB_TOKEN is not set. Locally, copy .env.example to .env.local and add a GitHub " +
+        "personal access token; when deployed, set GITHUB_TOKEN in the host's environment variables.",
     );
   }
   return token;
+}
+
+/**
+ * Work out when a rate limit lifts.
+ *
+ * `retry-after` is a delay in seconds and takes precedence, since it accompanies the
+ * secondary limit; `x-ratelimit-reset` is an absolute UTC epoch in seconds.
+ */
+function resolveResetAt(
+  retryAfter: string | null,
+  rateLimitReset: string | null,
+): Date | undefined {
+  const delaySeconds = Number(retryAfter);
+  if (retryAfter && Number.isFinite(delaySeconds) && delaySeconds >= 0) {
+    return new Date(Date.now() + delaySeconds * 1000);
+  }
+
+  const resetEpoch = Number(rateLimitReset);
+  if (rateLimitReset && Number.isFinite(resetEpoch) && resetEpoch > 0) {
+    return new Date(resetEpoch * 1000);
+  }
+
+  return undefined;
 }
 
 /** Build a GitHubError from a non-OK response, without echoing GitHub's body back out. */
@@ -129,12 +153,16 @@ function errorFromResponse(response: Response, context: string): GitHubError {
     );
   }
 
-  // A 403 is only a rate limit when the remaining quota is actually zero; otherwise it is
-  // a permissions problem. 429 covers GitHub's secondary (abuse) rate limits.
+  // GitHub signals two different rate limits, and a bare 403 is not enough to identify
+  // either — it is also what a scope/permission problem looks like. Classify only on a
+  // positive signal, so we never tell someone to "wait an hour" for a token that will
+  // never work by waiting:
+  //   - primary limit: 403 with `x-ratelimit-remaining: 0`, reset as an epoch timestamp
+  //   - secondary (abuse) limit: 403 or 429 with `retry-after` in seconds
   const remaining = headers.get("x-ratelimit-remaining");
-  if (status === 429 || (status === 403 && remaining === "0")) {
-    const reset = Number(headers.get("x-ratelimit-reset"));
-    const resetAt = Number.isFinite(reset) && reset > 0 ? new Date(reset * 1000) : undefined;
+  const retryAfter = headers.get("retry-after");
+  if (status === 429 || (status === 403 && (remaining === "0" || retryAfter))) {
+    const resetAt = resolveResetAt(retryAfter, headers.get("x-ratelimit-reset"));
     return new GitHubError(
       "rate-limited",
       resetAt
@@ -247,8 +275,15 @@ export async function fetchUserRepos(username: string): Promise<GitHubRepo[]> {
 /**
  * Fetch and decode a repo's README.
  *
- * Returns `null` when the repo simply has no README — that is a normal state, not an
- * error, so callers are not forced to try/catch it. Other failures still throw.
+ * Returns `null` when the repo exists but has no README — a normal state, not an error,
+ * so callers are not forced to try/catch it. A repo that does not exist still throws
+ * `not-found`.
+ *
+ * Distinguishing those two needs a second request, because GitHub answers both with an
+ * identical 404: `torvalds/pesconvert` is a real repo whose `/readme` is 404, and it is
+ * byte-for-byte the same response as one for a repo that was never there. The extra call
+ * only happens on the 404 path, so the common case costs nothing, and it is cached like
+ * every other request.
  */
 export async function fetchReadme(
   owner: string,
@@ -264,6 +299,12 @@ export async function fetchReadme(
     );
   } catch (error) {
     if (error instanceof GitHubError && error.kind === "not-found") {
+      // Confirm the repo itself exists before reporting "no README". If it does not,
+      // this rethrows `not-found` for the repo, which is the accurate answer.
+      await githubFetch<unknown>(
+        `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+        `Repository "${owner}/${repo}"`,
+      );
       return null;
     }
     throw error;
