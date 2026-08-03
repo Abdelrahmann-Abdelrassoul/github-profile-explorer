@@ -10,8 +10,9 @@ import { RepoList } from "@/components/repo-list";
 import { SearchForm } from "@/components/search-form";
 
 type ProfilePageProps = {
-  // In Next 16 route params are async and must be awaited.
+  // In Next 16 both params and searchParams are async and must be awaited.
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ repos?: string }>;
 };
 
 type ProfileResult =
@@ -53,9 +54,16 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProfilePage({ params }: ProfilePageProps) {
-  const { username } = await params;
+export default async function ProfilePage({
+  params,
+  searchParams,
+}: ProfilePageProps) {
+  const [{ username }, { repos: reposParam }] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const login = decodeURIComponent(username);
+  const showAllRepos = reposParam === "all";
   const result = await loadProfile(login);
 
   return (
@@ -65,7 +73,11 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         {result.ok ? (
           <div className="space-y-10">
             <ProfileHeader user={result.user} repos={result.repos} />
-            <RepoList repos={result.repos} />
+            <RepoList
+              repos={result.repos}
+              username={result.user.login}
+              showAll={showAllRepos}
+            />
           </div>
         ) : (
           <DataError kind={result.error.kind} resetAt={result.error.resetAt} />
