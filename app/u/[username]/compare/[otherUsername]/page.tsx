@@ -5,6 +5,7 @@ import type { GitHubRepo, GitHubUser } from "@/types/github";
 import { GitHubError, fetchCommitCount, fetchUser, fetchUserRepos } from "@/lib/server/github";
 import { accountAge, identityColors, totalStars, type Metric } from "@/lib/compare";
 import { formatCount } from "@/lib/format";
+import { CompareForm } from "@/components/compare-form";
 import { CompareHeader } from "@/components/compare-header";
 import { LanguageBar } from "@/components/language-bar";
 import { MetricComparison } from "@/components/metric-comparison";
@@ -62,10 +63,23 @@ export async function generateMetadata({
   const { username, otherUsername } = await params;
   const a = decodeURIComponent(username);
   const b = decodeURIComponent(otherUsername);
+
+  if (sameLogin(a, b)) {
+    return {
+      title: `${a} — GitHub Profile Explorer`,
+      description: `${a} cannot be compared with themselves.`,
+    };
+  }
+
   return {
     title: `${a} vs ${b} — GitHub Profile Explorer`,
     description: `Side-by-side comparison of GitHub users ${a} and ${b}.`,
   };
+}
+
+/** GitHub logins are case-insensitive, so "Torvalds" and "torvalds" are one account. */
+function sameLogin(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
 }
 
 export default async function ComparePage({ params }: ComparePageProps) {
@@ -73,19 +87,104 @@ export default async function ComparePage({ params }: ComparePageProps) {
   const aLogin = decodeURIComponent(username);
   const bLogin = decodeURIComponent(otherUsername);
 
+  // Identical logins need no API calls at all — six requests to prove every metric ties.
+  if (sameLogin(aLogin, bLogin)) {
+    return <Shell aLogin={aLogin} bLogin={bLogin} content={<SameUser login={aLogin} />} />;
+  }
+
   const [aSide, bSide] = await Promise.all([loadSide(aLogin), loadSide(bLogin)]);
 
+  // Two different logins can still be one account: GitHub redirects renamed users, so
+  // /compare/oldname and /compare/newname both resolve here.
+  if (aSide.ok && bSide.ok && sameLogin(aSide.user.login, bSide.user.login)) {
+    return (
+      <Shell
+        aLogin={aLogin}
+        bLogin={bLogin}
+        content={<SameUser login={aSide.user.login} alias={aLogin} otherAlias={bLogin} />}
+      />
+    );
+  }
+
   return (
-    <>
-      <CompareNav aLogin={aLogin} bLogin={bLogin} />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
-        {aSide.ok && bSide.ok ? (
+    <Shell
+      aLogin={aLogin}
+      bLogin={bLogin}
+      content={
+        aSide.ok && bSide.ok ? (
           <Comparison a={aSide} b={bSide} />
         ) : (
           <FailedSides a={aSide} b={bSide} />
-        )}
-      </main>
+        )
+      }
+    />
+  );
+}
+
+function Shell({
+  aLogin,
+  bLogin,
+  content,
+}: {
+  aLogin: string;
+  bLogin: string;
+  content: React.ReactNode;
+}) {
+  return (
+    <>
+      <CompareNav aLogin={aLogin} bLogin={bLogin} />
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">{content}</main>
     </>
+  );
+}
+
+/**
+ * Both sides are the same account.
+ *
+ * Rather than rendering a comparison where every metric ties and the bars sit at 50/50,
+ * say so and offer the form again — the user almost certainly meant a different second
+ * name. `alias` is set when two different spellings resolved to one account.
+ */
+function SameUser({
+  login,
+  alias,
+  otherAlias,
+}: {
+  login: string;
+  alias?: string;
+  otherAlias?: string;
+}) {
+  const viaAlias = alias && otherAlias && !sameLogin(alias, otherAlias);
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-dashed border-border p-8 text-center">
+        <h1 className="font-heading text-lg font-semibold">
+          That&rsquo;s the same account on both sides
+        </h1>
+        <p className="mx-auto mt-2 max-w-prose text-sm text-muted-foreground">
+          {viaAlias ? (
+            <>
+              <span className="font-mono text-foreground">@{alias}</span> and{" "}
+              <span className="font-mono text-foreground">@{otherAlias}</span> both resolve
+              to <span className="font-mono text-foreground">@{login}</span>, so every
+              metric would tie.
+            </>
+          ) : (
+            <>
+              Comparing <span className="font-mono text-foreground">@{login}</span> with
+              themselves would tie on every metric. Pick a different second user.
+            </>
+          )}
+        </p>
+
+        <Button asChild variant="outline" className="mt-6">
+          <Link href={`/u/${encodeURIComponent(login)}`}>Back to @{login}</Link>
+        </Button>
+      </div>
+
+      <CompareForm username={login} />
+    </div>
   );
 }
 
