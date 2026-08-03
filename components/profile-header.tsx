@@ -18,12 +18,22 @@ export function ProfileHeader({
   return (
     <header className="space-y-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+        {/*
+          The avatar is this page's LCP element.
+
+          `priority` is deprecated in Next 16: it still injects a <link rel="preload">
+          but no longer sets fetchpriority on the <img>, which left Lighthouse's LCP
+          discovery check failing. The docs recommend loading="eager" / fetchPriority
+          over preload — and preload buys little here anyway, since the avatar URL is
+          not known until GitHub responds.
+        */}
         <Image
           src={avatarAt(user.avatarUrl, 224)}
           alt=""
           width={112}
           height={112}
-          priority
+          fetchPriority="high"
+          loading="eager"
           className="size-20 shrink-0 rounded-xl border border-border object-cover sm:size-28"
         />
 
