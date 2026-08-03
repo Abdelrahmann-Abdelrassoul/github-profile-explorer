@@ -102,6 +102,11 @@ interface RawCommit {
   };
 }
 
+interface RawCommitSearch {
+  total_count: number;
+  incomplete_results: boolean;
+}
+
 function requireToken(): string {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
@@ -381,4 +386,37 @@ export async function fetchCommits(
     authorName: entry.commit.author?.name ?? null,
     date: entry.commit.author?.date ?? "",
   }));
+}
+
+/**
+ * Count commits a user authored in their OWN repositories since a date.
+ *
+ * One request instead of one per repo, but note the `user:` qualifier is load-bearing,
+ * not an optimisation. Without it the count is inflated by every indexed fork that
+ * contains the user's commits: `author:torvalds` alone returns over a million and is not
+ * even stable between calls, because the kernel has tens of thousands of forks. Scoped to
+ * repos he owns it returns ~3,100, which is believable.
+ *
+ * The trade-off is that contributions to other people's repos and to organisations are
+ * excluded — gaearon measures 186 here versus 860 unscoped, the difference being his work
+ * in facebook/react. Callers must label this as "own repositories" rather than implying
+ * it is total commit activity.
+ *
+ * Also approximate for unavoidable reasons: search indexes default branches only and lags
+ * real time by roughly 15-60 minutes.
+ *
+ * Search has its own 30/min rate limit, separate from the 5,000/hr core budget, and trips
+ * secondary limits easily under concurrency — call these sequentially, and let a failure
+ * degrade this one metric rather than the whole page.
+ */
+export async function fetchCommitCount(login: string, since: Date): Promise<number> {
+  const sinceDay = since.toISOString().slice(0, 10);
+  const query = `author:${login} user:${login} committer-date:>${sinceDay}`;
+
+  const raw = await githubFetch<RawCommitSearch>(
+    `/search/commits?q=${encodeURIComponent(query)}&per_page=1`,
+    `Commit activity for "${login}"`,
+  );
+
+  return raw.total_count;
 }

@@ -10,7 +10,7 @@ approve, implement, review the diff, commit, then move to the next.
       contents, commits) with error handling for 404 / rate-limit
 - [x] 2. `/` search page → `/u/[username]` profile page: avatar, bio, stats, repo list
       (with loading + not-found states)
-- [ ] 3. Compare feature: `/u/[username]/compare/[otherUsername]`
+- [x] 3. Compare feature: `/u/[username]/compare/[otherUsername]`
 - [ ] 4. AI profile summary (server route + UI trigger on the profile page)
 - [ ] 5. AI repo chat: grounding data fetch + Vercel AI SDK streaming + chat UI
 - [ ] 6. Chat history persistence (localStorage, per repo)
