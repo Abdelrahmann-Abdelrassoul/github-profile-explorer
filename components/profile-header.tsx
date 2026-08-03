@@ -19,7 +19,7 @@ export function ProfileHeader({
     <header className="space-y-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
         <Image
-          src={user.avatarUrl}
+          src={avatarAt(user.avatarUrl, 224)}
           alt=""
           width={112}
           height={112}
@@ -107,13 +107,39 @@ function Stat({
   value: string;
   note?: string;
 }) {
+  // A <dl> may only contain dt/dd pairs (optionally wrapped in a div), so the note lives
+  // inside the <dd> rather than as a sibling <p> — that nesting failed the axe
+  // definition-list rule.
   return (
     <div className="bg-card px-4 py-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="font-mono text-xl font-medium tabular-nums">{value}</dd>
-      {note && <p className="font-mono text-[0.65rem] text-muted-foreground">{note}</p>}
+      <dd className="font-mono text-xl font-medium tabular-nums">
+        {value}
+        {note && (
+          <span className="block font-mono text-[0.65rem] font-normal text-muted-foreground">
+            {note}
+          </span>
+        )}
+      </dd>
     </div>
   );
+}
+
+/**
+ * Ask GitHub for an avatar at the size we actually render.
+ *
+ * Avatars default to ~460px but display at 112px (224 for 2x). Requesting the smaller
+ * image means fewer bytes over the wire and less work for next/image to resize — the
+ * avatar is the page's LCP element, so this is the one that matters.
+ */
+function avatarAt(url: string, size: number): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("s", String(size));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
 }
 
 /** GitHub stores blog values with and without a scheme; links need one to be absolute. */

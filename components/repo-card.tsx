@@ -46,34 +46,42 @@ export function RepoCard({ repo }: { repo: GitHubRepo }) {
         )}
 
         <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground">
+          {/* Each div holds exactly one dt/dd pair; icons live inside the dd, since
+              anything else between them fails the axe definition-list rule. */}
           {repo.language && (
-            <div className="flex items-center gap-1.5">
+            <div>
               <dt className="sr-only">Language</dt>
-              <span
-                aria-hidden
-                className="size-2.5 rounded-full"
-                style={{ backgroundColor: spine }}
-              />
-              <dd>{repo.language}</dd>
+              <dd className="flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: spine }}
+                />
+                {repo.language}
+              </dd>
             </div>
           )}
 
-          <div className="flex items-center gap-1">
+          <div>
             <dt className="sr-only">Stars</dt>
-            <Star aria-hidden className="size-3.5" />
-            <dd>{formatCount(repo.stars)}</dd>
+            <dd className="flex items-center gap-1">
+              <Star aria-hidden className="size-3.5" />
+              {formatCount(repo.stars)}
+            </dd>
           </div>
 
           {repo.forks > 0 && (
-            <div className="flex items-center gap-1">
+            <div>
               <dt className="sr-only">Forks</dt>
-              <GitFork aria-hidden className="size-3.5" />
-              <dd>{formatCount(repo.forks)}</dd>
+              <dd className="flex items-center gap-1">
+                <GitFork aria-hidden className="size-3.5" />
+                {formatCount(repo.forks)}
+              </dd>
             </div>
           )}
 
           {updated && (
-            <div className="flex items-center gap-1">
+            <div>
               <dt className="sr-only">Last updated</dt>
               <dd>updated {updated}</dd>
             </div>
