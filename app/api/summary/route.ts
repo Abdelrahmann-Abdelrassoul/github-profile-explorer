@@ -1,6 +1,6 @@
-import { google } from "@ai-sdk/google";
 import { streamText } from "ai";
 
+import { aiModel, isAiConfigured } from "@/lib/server/ai";
 import { GitHubError, fetchUser, fetchUserRepos } from "@/lib/server/github";
 import { SUMMARY_SYSTEM_PROMPT, buildSummaryPrompt } from "@/lib/server/summary-prompt";
 
@@ -32,11 +32,10 @@ export async function POST(request: Request) {
     return new Response("Malformed request body.", { status: 400 });
   }
 
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    return new Response(
-      "The AI summary is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY.",
-      { status: 503 },
-    );
+  if (!isAiConfigured()) {
+    return new Response("The AI summary is not configured. Set GROQ_API_KEY.", {
+      status: 503,
+    });
   }
 
   let prompt: string;
@@ -69,7 +68,7 @@ export async function POST(request: Request) {
   let providerError: unknown = null;
 
   const result = streamText({
-    model: google("gemini-2.5-flash"),
+    model: aiModel(),
     system: SUMMARY_SYSTEM_PROMPT,
     prompt,
     onError: ({ error }) => {
@@ -138,10 +137,13 @@ function describeProviderError(error: unknown): string {
       : undefined;
 
   if (status === 401 || status === 403) {
-    return "Google rejected the API key. Check that GOOGLE_GENERATIVE_AI_API_KEY is valid, that the Generative Language API is enabled for its project, and that the Gemini API is available in your region.";
+    return "The AI provider rejected the API key. Check that GROQ_API_KEY in .env.local is valid and has not been revoked.";
+  }
+  if (status === 404) {
+    return "The configured AI model is unavailable. Model IDs are retired periodically — check console.groq.com/docs/models.";
   }
   if (status === 429) {
-    return "The Gemini free tier quota is exhausted. Try again later.";
+    return "The AI provider's rate limit was hit. Try again in a moment.";
   }
   return "The AI provider could not generate a summary. Try again in a moment.";
 }
