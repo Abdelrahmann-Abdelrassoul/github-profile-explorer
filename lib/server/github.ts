@@ -277,6 +277,15 @@ export async function fetchUserRepos(username: string): Promise<GitHubRepo[]> {
   return raw.map(toRepo);
 }
 
+/** Fetch a single repository's metadata. Throws `not-found` if it does not exist. */
+export async function fetchRepo(owner: string, repo: string): Promise<GitHubRepo> {
+  const raw = await githubFetch<RawRepo>(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+    `Repository "${owner}/${repo}"`,
+  );
+  return toRepo(raw);
+}
+
 /**
  * Fetch and decode a repo's README.
  *
