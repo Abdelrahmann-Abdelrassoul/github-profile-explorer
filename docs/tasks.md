@@ -15,7 +15,7 @@ approve, implement, review the diff, commit, then move to the next.
       (uses Groq, not Gemini — see CLAUDE.md; the spec's "free, no credit card"
       premise no longer held for Gemini)
 - [x] 5. AI repo chat: grounding data fetch + Vercel AI SDK streaming + chat UI
-- [ ] 6. Chat history persistence (localStorage, per repo)
+- [x] 6. Chat history persistence (localStorage, per repo)
 - [ ] 7. Notes feature (profiles + repos), localStorage, shown on load
 - [ ] 8. Polish pass: error boundaries, empty states, basic responsive layout
 - [ ] 9. README (setup, env vars, persistence decision, demo link) + deploy to Vercel
