@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { GitHubError } from "@/lib/server/github";
 import { loadRepoContext, type RepoContext } from "@/lib/server/repo-context";
 import { DataError } from "@/components/data-error";
+import { NotesPanel } from "@/components/notes-panel";
 import { RepoChat } from "@/components/repo-chat";
 import { RepoHeading } from "@/components/repo-heading";
 
@@ -63,6 +64,15 @@ export default async function RepoChatPage({ params }: ChatPageProps) {
         {result.ok ? (
           <>
             <RepoHeading context={result.context} />
+            {/* Collapsed by default — this route's height is fixed, and the transcript
+                should keep the space rather than a textarea that is usually idle. */}
+            <div className="mb-4 shrink-0">
+              <NotesPanel
+                subject={{ kind: "repo", owner, repo: name }}
+                label={`${owner}/${name}`}
+                collapsible
+              />
+            </div>
             <RepoChat username={owner} repo={name} />
           </>
         ) : (
