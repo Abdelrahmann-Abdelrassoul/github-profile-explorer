@@ -72,21 +72,41 @@ export default async function ProfilePage({
   return (
     <>
       <ProfileNav login={login} />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+      {/* Wider only on large screens, since two columns need more room than the 48rem
+          reading measure the rest of the app uses. */}
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10 lg:max-w-6xl">
         {result.ok ? (
           <div className="space-y-10">
             <ProfileHeader user={result.user} repos={result.repos} />
-            <NotesPanel
-              subject={{ kind: "user", login: result.user.login }}
-              label={`@${result.user.login}`}
-            />
-            <ProfileSummary username={result.user.login} />
-            <CompareForm username={result.user.login} />
-            <RepoList
-              repos={result.repos}
-              username={result.user.login}
-              showAll={showAllRepos}
-            />
+
+            {/*
+             * Notes, summary and compare used to sit between the profile and the
+             * repositories, pushing the repo list below three panels. They move to a
+             * sidebar so the repositories start immediately.
+             *
+             * The sidebar is first in the DOM so a narrow screen — where the grid
+             * collapses to one column — keeps the original reading order. Explicit
+             * column placement puts it on the right once there is room, without
+             * reordering the markup.
+             */}
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+              <aside className="space-y-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1">
+                <NotesPanel
+                  subject={{ kind: "user", login: result.user.login }}
+                  label={`@${result.user.login}`}
+                />
+                <ProfileSummary username={result.user.login} />
+                <CompareForm username={result.user.login} />
+              </aside>
+
+              <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+                <RepoList
+                  repos={result.repos}
+                  username={result.user.login}
+                  showAll={showAllRepos}
+                />
+              </div>
+            </div>
           </div>
         ) : (
           <DataError kind={result.error.kind} resetAt={result.error.resetAt} />

@@ -26,8 +26,9 @@ export function RepoHeading({ context }: { context: RepoContext }) {
   const spine = languageColor(meta.language);
   const explored = [...context.exploredDirs, ...context.exploredFiles];
 
+  // Spacing is the container's job now that this sits in a rail alongside the notes.
   return (
-    <header className="mb-4 shrink-0 overflow-hidden rounded-lg border border-border bg-card">
+    <header className="shrink-0 overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex gap-4 p-4">
         <span
           aria-hidden

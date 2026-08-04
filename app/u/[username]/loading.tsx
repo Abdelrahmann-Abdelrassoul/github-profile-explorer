@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function Loading() {
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10 lg:max-w-6xl">
       <div className="space-y-10" aria-busy role="status" aria-label="Loading profile">
         <div className="space-y-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">

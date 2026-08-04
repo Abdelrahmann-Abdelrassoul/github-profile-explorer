@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function Loading() {
   return (
     // Matches the page's spacing so the view does not jolt when content replaces this.
-    <main className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col px-6 pt-6 pb-4">
+    <main className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col gap-4 px-6 pt-6 pb-4 lg:max-w-6xl lg:flex-row lg:gap-6">
       <div
         className="space-y-6"
         aria-busy
