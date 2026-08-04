@@ -1,5 +1,15 @@
-import type { GitHubCommit, GitHubContentEntry, GitHubReadme } from "@/types/github";
-import { fetchCommits, fetchReadme, fetchRepoContents } from "@/lib/server/github";
+import type {
+  GitHubCommit,
+  GitHubContentEntry,
+  GitHubReadme,
+  GitHubRepo,
+} from "@/types/github";
+import {
+  fetchCommits,
+  fetchReadme,
+  fetchRepo,
+  fetchRepoContents,
+} from "@/lib/server/github";
 
 /**
  * Assembles the grounding context for the repo chat.
@@ -24,6 +34,8 @@ const MAX_COMMIT_SUBJECT = 120;
 export type RepoContext = {
   owner: string;
   repo: string;
+  /** Repo metadata, used for the page heading and included in the grounding block. */
+  meta: GitHubRepo;
   /** The assembled block handed to the model. */
   block: string;
   /** Surfaced in the UI so the user knows what the model can actually see. */
@@ -121,17 +133,17 @@ function renderCommits(commits: GitHubCommit[]): string {
 /**
  * Fetch and assemble everything the chat is grounded in.
  *
- * Note the ordering: `fetchRepoContents` is what establishes the repository exists.
- * `fetchReadme` deliberately returns null for a repo with no README, so it cannot be used
- * to detect a bad repo name — see the task 1 fix for why.
+ * `fetchRepo` and `fetchRepoContents` both throw `not-found` for a bad repo name, which is
+ * what establishes the repository exists. `fetchReadme` deliberately returns null for a
+ * repo with no README, so it can never serve that purpose — see the task 1 fix for why.
  */
 export async function loadRepoContext(
   owner: string,
   repo: string,
 ): Promise<RepoContext> {
-  const entries = await fetchRepoContents(owner, repo);
-
-  const [readme, commits] = await Promise.all([
+  const [meta, entries, readme, commits] = await Promise.all([
+    fetchRepo(owner, repo),
+    fetchRepoContents(owner, repo),
     fetchReadme(owner, repo),
     fetchCommits(owner, repo, COMMIT_COUNT),
   ]);
@@ -142,6 +154,11 @@ export async function loadRepoContext(
     "REPOSITORY CONTEXT",
     "===",
     `repository: ${owner}/${repo}`,
+    meta.description ? `description: ${meta.description}` : "description: (none)",
+    `primary language: ${meta.language ?? "not detected"}`,
+    `stars: ${meta.stars} | forks: ${meta.forks}`,
+    meta.topics.length > 0 ? `topics: ${meta.topics.join(", ")}` : null,
+    meta.isFork ? "note: this repository is a fork" : null,
     "",
     "--- README ---",
     rendered.text,
@@ -153,11 +170,14 @@ export async function loadRepoContext(
     renderCommits(commits),
     "===",
     "END REPOSITORY CONTEXT",
-  ].join("\n");
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
 
   return {
     owner,
     repo,
+    meta,
     block,
     hasReadme: readme !== null,
     readmeTruncated: rendered.truncated,

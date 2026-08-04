@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileText, GitCommitHorizontal, Files } from "lucide-react";
 
 import { GitHubError } from "@/lib/server/github";
 import { loadRepoContext, type RepoContext } from "@/lib/server/repo-context";
 import { DataError } from "@/components/data-error";
 import { RepoChat } from "@/components/repo-chat";
+import { RepoHeading } from "@/components/repo-heading";
 
 type ChatPageProps = {
   params: Promise<{ username: string; repo: string }>;
@@ -57,7 +57,7 @@ export default async function RepoChatPage({ params }: ChatPageProps) {
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-8">
         {result.ok ? (
           <>
-            <GroundingSummary context={result.context} />
+            <RepoHeading context={result.context} />
             <RepoChat username={owner} repo={name} />
           </>
         ) : (
@@ -65,38 +65,6 @@ export default async function RepoChatPage({ params }: ChatPageProps) {
         )}
       </main>
     </>
-  );
-}
-
-/**
- * States plainly what the model was given.
- *
- * Without this the grounding is invisible, and a user has no way to tell a confident
- * answer from one built on a truncated README.
- */
-function GroundingSummary({ context }: { context: RepoContext }) {
-  return (
-    <section
-      aria-label="What the assistant can see"
-      className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 font-mono text-xs text-muted-foreground"
-    >
-      <span className="flex items-center gap-1.5">
-        <FileText aria-hidden className="size-3.5" />
-        {context.hasReadme
-          ? context.readmeTruncated
-            ? "README (truncated)"
-            : "README"
-          : "no README"}
-      </span>
-      <span className="flex items-center gap-1.5">
-        <Files aria-hidden className="size-3.5" />
-        {context.fileCount} top-level entries
-      </span>
-      <span className="flex items-center gap-1.5">
-        <GitCommitHorizontal aria-hidden className="size-3.5" />
-        {context.commitCount} recent commits
-      </span>
-    </section>
   );
 }
 
