@@ -90,13 +90,32 @@ export default async function ProfilePage({
              * reordering the markup.
              */}
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-              <aside className="space-y-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1">
-                <NotesPanel
-                  subject={{ kind: "user", login: result.user.login }}
-                  label={`@${result.user.login}`}
-                />
-                <ProfileSummary username={result.user.login} />
-                <CompareForm username={result.user.login} />
+              <aside className="lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1">
+                {/*
+                 * The repository column opens with its "Repositories" heading, so without
+                 * this the rail's first card sits a heading's height higher than the first
+                 * repository card and the two columns read as misaligned.
+                 *
+                 * An empty line box with the heading's own type classes matches that height
+                 * however the type scale changes later, which a hardcoded padding value
+                 * would not. Hidden below `lg`, where the columns are stacked and there is
+                 * nothing to align to.
+                 */}
+                <div
+                  aria-hidden
+                  className="mb-4 hidden font-heading text-lg font-semibold lg:block"
+                >
+                  &nbsp;
+                </div>
+
+                <div className="space-y-6">
+                  <NotesPanel
+                    subject={{ kind: "user", login: result.user.login }}
+                    label={`@${result.user.login}`}
+                  />
+                  <ProfileSummary username={result.user.login} />
+                  <CompareForm username={result.user.login} />
+                </div>
               </aside>
 
               <div className="min-w-0 lg:col-start-1 lg:row-start-1">
