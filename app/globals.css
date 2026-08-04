@@ -133,6 +133,21 @@
   }
 }
 
+/*
+ * Hide a scrollbar while keeping the region scrollable by wheel, touch and keyboard.
+ * Tailwind has no built-in utility for this.
+ *
+ * Used only where an enclosing frame already signals that the area scrolls — the chat
+ * transcript sits between a pinned header and composer. Don't reach for it on ordinary
+ * page content, where the scrollbar is the only cue that more exists below.
+ */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

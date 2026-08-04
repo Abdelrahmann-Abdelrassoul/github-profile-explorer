@@ -3,7 +3,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Grounding is fetched before the chat renders, so this covers those three calls. */
 export default function Loading() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-8">
+    // Matches the page's spacing so the view does not jolt when content replaces this.
+    <main className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col px-6 pt-6 pb-4">
       <div
         className="space-y-6"
         aria-busy

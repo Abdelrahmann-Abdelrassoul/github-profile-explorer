@@ -51,10 +51,15 @@ export default async function RepoChatPage({ params }: ChatPageProps) {
   const name = decodeURIComponent(repo);
   const result = await loadContext(owner, name);
 
+  /*
+   * The fixed-height shell is in layout.tsx so every state shares it. Here the nav and
+   * repository card stay put and the composer stays reachable, so only the transcript
+   * moves — context about what is being discussed never scrolls out of view.
+   */
   return (
     <>
       <ChatNav owner={owner} repo={name} />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-8">
+      <main className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col px-6 pt-6 pb-4">
         {result.ok ? (
           <>
             <RepoHeading context={result.context} />
@@ -70,7 +75,7 @@ export default async function RepoChatPage({ params }: ChatPageProps) {
 
 function ChatNav({ owner, repo }: { owner: string; repo: string }) {
   return (
-    <div className="border-b border-border">
+    <div className="shrink-0 border-b border-border">
       <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 px-6 py-4">
         <Link
           href="/"
