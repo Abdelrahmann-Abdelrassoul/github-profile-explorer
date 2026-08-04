@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SavedNotes } from "@/components/saved-notes";
 import { SearchForm } from "@/components/search-form";
 
 const EXAMPLES = ["torvalds", "gaearon", "sindresorhus"];
@@ -36,6 +37,9 @@ export default function Home() {
             </Link>
           ))}
         </div>
+
+        {/* Renders nothing until notes exist, so a first visit is unchanged. */}
+        <SavedNotes />
       </div>
     </main>
   );

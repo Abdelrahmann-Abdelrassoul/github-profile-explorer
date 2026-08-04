@@ -6,6 +6,7 @@ import type { GitHubRepo, GitHubUser } from "@/types/github";
 import { GitHubError, fetchUser, fetchUserRepos } from "@/lib/server/github";
 import { CompareForm } from "@/components/compare-form";
 import { DataError } from "@/components/data-error";
+import { NotesPanel } from "@/components/notes-panel";
 import { ProfileHeader } from "@/components/profile-header";
 import { ProfileSummary } from "@/components/profile-summary";
 import { RepoList } from "@/components/repo-list";
@@ -75,6 +76,10 @@ export default async function ProfilePage({
         {result.ok ? (
           <div className="space-y-10">
             <ProfileHeader user={result.user} repos={result.repos} />
+            <NotesPanel
+              subject={{ kind: "user", login: result.user.login }}
+              label={`@${result.user.login}`}
+            />
             <ProfileSummary username={result.user.login} />
             <CompareForm username={result.user.login} />
             <RepoList
