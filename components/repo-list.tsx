@@ -1,27 +1,33 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
 
 import type { GitHubRepo } from "@/types/github";
+import { Button } from "@/components/ui/button";
 import { RepoCard } from "@/components/repo-card";
 
 /**
- * Only the most recently updated repos render by default.
+ * The profile's repository list, revealed a page at a time.
  *
- * A 100-repo profile produced ~2,900 DOM elements and a 15,600px page, which Lighthouse
- * flags and which costs paint time for rows almost nobody scrolls to. Expanding is a
- * plain link with a query param rather than client state, so it still works with
- * JavaScript disabled.
+ * Previously this used a `?repos=all` query parameter, which meant expanding re-rendered
+ * the route and threw the reader back to the top of the page. Every repo is already in
+ * memory here — the profile fetches up to 100 in one call — so revealing more is local
+ * state, costs no request, and leaves scroll position alone.
  */
-const DEFAULT_VISIBLE = 30;
+const PAGE_SIZE = 20;
 
 export function RepoList({
   repos,
   username,
-  showAll,
+  showAll = false,
 }: {
   repos: GitHubRepo[];
   username: string;
-  showAll: boolean;
+  /** Set by the ?repos=all fallback, so the no-JS path still reaches the whole list. */
+  showAll?: boolean;
 }) {
+  const [visible, setVisible] = useState(showAll ? repos.length : PAGE_SIZE);
+
   if (repos.length === 0) {
     return (
       <section aria-labelledby="repos-heading" className="space-y-4">
@@ -33,44 +39,51 @@ export function RepoList({
     );
   }
 
-  const visible = showAll ? repos : repos.slice(0, DEFAULT_VISIBLE);
-  const hidden = repos.length - visible.length;
-  const profilePath = `/u/${encodeURIComponent(username)}`;
+  const shown = repos.slice(0, visible);
+  const remaining = repos.length - shown.length;
+  const nextStep = Math.min(PAGE_SIZE, remaining);
 
   return (
     <section aria-labelledby="repos-heading" className="space-y-4">
       <RepoListHeading count={repos.length} />
 
       <ul className="space-y-3">
-        {visible.map((repo) => (
+        {shown.map((repo) => (
           <RepoCard key={repo.id} repo={repo} />
         ))}
       </ul>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-mono text-xs text-muted-foreground">
-          Showing {visible.length} of {repos.length}
+        <p aria-live="polite" className="font-mono text-xs text-muted-foreground">
+          Showing {shown.length} of {repos.length}
           {repos.length === 100 && " most recently updated"}
         </p>
 
-        {hidden > 0 ? (
-          <Link
-            href={`${profilePath}?repos=all`}
-            className="rounded-sm text-sm underline underline-offset-4 decoration-muted-foreground/40 outline-none hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        {remaining > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setVisible((current) => current + PAGE_SIZE)}
           >
-            Show all {repos.length} repositories
-          </Link>
-        ) : (
-          repos.length > DEFAULT_VISIBLE && (
-            <Link
-              href={profilePath}
-              className="rounded-sm text-sm underline underline-offset-4 decoration-muted-foreground/40 outline-none hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Show fewer
-            </Link>
-          )
+            Load {nextStep} more
+          </Button>
         )}
       </div>
+
+      {/*
+        Without JavaScript the button cannot reveal anything, so offer the server-rendered
+        full list instead. The profile page still honours ?repos=all for exactly this.
+      */}
+      {remaining > 0 && (
+        <noscript>
+          <a
+            href={`/u/${encodeURIComponent(username)}?repos=all`}
+            className="text-sm underline underline-offset-4"
+          >
+            Show all {repos.length} repositories
+          </a>
+        </noscript>
+      )}
     </section>
   );
 }
