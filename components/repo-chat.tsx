@@ -227,7 +227,7 @@ export function RepoChat({ username, repo }: { username: string; repo: string })
         composer off-screen instead of scrolling.
       */}
       <div
-        className="no-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto"
+        className="no-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain"
         aria-live="polite"
       >
         {messages.length === 0 && (

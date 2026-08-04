@@ -9,5 +9,15 @@
  * collapses, and `vh` would leave the composer sitting underneath it.
  */
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-dvh flex-col overflow-hidden">{children}</div>;
+  /*
+   * `data-chat-shell` is the hook globals.css uses to lock html/body scrolling for this
+   * route only. Sizing this element alone is not enough: the root layout gives html
+   * `h-full` and body `min-h-full`, and those percentages resolve against the large
+   * viewport, so the document stays taller than the visible area and scrolls underneath.
+   */
+  return (
+    <div data-chat-shell className="flex h-dvh flex-col overflow-hidden">
+      {children}
+    </div>
+  );
 }
