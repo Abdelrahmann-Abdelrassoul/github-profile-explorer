@@ -69,7 +69,8 @@ export async function POST(request: Request) {
 
   const result = streamText({
     model: aiModel(),
-    system: SUMMARY_SYSTEM_PROMPT,
+    // `system` is deprecated in ai@7 in favour of `instructions`.
+    instructions: SUMMARY_SYSTEM_PROMPT,
     prompt,
     onError: ({ error }) => {
       providerError = error;

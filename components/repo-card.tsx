@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GitFork, Star } from "lucide-react";
 
 import type { GitHubRepo } from "@/types/github";
@@ -13,6 +14,9 @@ import { languageColor } from "@/lib/language-colors";
 export function RepoCard({ repo }: { repo: GitHubRepo }) {
   const updated = formatRelative(repo.updatedAt);
   const spine = languageColor(repo.language);
+  // fullName is "owner/name" — for a fork that is the fork's own path, which is what the
+  // chat needs to fetch, so this is more reliable than assuming the profile's username.
+  const owner = repo.fullName.split("/")[0];
 
   return (
     <li className="group relative flex gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:border-muted-foreground/40">
@@ -37,6 +41,12 @@ export function RepoCard({ repo }: { repo: GitHubRepo }) {
           {repo.isFork && (
             <span className="font-mono text-xs text-muted-foreground">fork</span>
           )}
+          <Link
+            href={`/u/${encodeURIComponent(owner)}/${encodeURIComponent(repo.name)}/chat`}
+            className="ml-auto rounded-sm text-xs text-muted-foreground underline underline-offset-4 decoration-muted-foreground/40 outline-none hover:text-foreground hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Chat<span className="sr-only"> about {repo.name}</span>
+          </Link>
         </div>
 
         {repo.description && (
