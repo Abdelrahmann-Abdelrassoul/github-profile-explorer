@@ -6,6 +6,7 @@ import type {
 } from "@/types/github";
 import {
   fetchCommits,
+  fetchFile,
   fetchReadme,
   fetchRepo,
   fetchRepoContents,
@@ -31,6 +32,58 @@ const COMMIT_COUNT = 20;
 /** One line each; merge commit bodies are noise here. */
 const MAX_COMMIT_SUBJECT = 120;
 
+/*
+ * Adaptive exploration.
+ *
+ * A README is the cheapest good description of a project, but plenty of repositories have
+ * none, or one line. Those chats were left answering from a file listing and commit
+ * subjects alone. When the README does not carry its weight, spend a few more requests
+ * reading what does: the manifest that names the project's dependencies and scripts, and
+ * the layout of the directories the code actually lives in.
+ *
+ * Deliberately bounded. This runs on every chat page load, and the point is to rescue thin
+ * repositories, not to crawl large ones.
+ */
+const MIN_USEFUL_README_CHARS = 500;
+const MAX_EXPLORED_DIRS = 3;
+const MAX_EXPLORED_FILES = 3;
+const MAX_EXPLORED_FILE_CHARS = 2_000;
+const MAX_EXPLORED_DIR_ENTRIES = 25;
+
+/** Where source usually lives, in rough order of how much it reveals. */
+const INTERESTING_DIRS = [
+  "src",
+  "source",
+  "lib",
+  "app",
+  "packages",
+  "cmd",
+  "internal",
+  "pkg",
+  "docs",
+  "examples",
+  "test",
+  "tests",
+];
+
+/** Manifests name the project, its dependencies and how it is run — dense signal. */
+const INTERESTING_FILES = [
+  "package.json",
+  "pyproject.toml",
+  "Cargo.toml",
+  "go.mod",
+  "composer.json",
+  "Gemfile",
+  "pubspec.yaml",
+  "build.gradle",
+  "pom.xml",
+  "CMakeLists.txt",
+  "Makefile",
+  "CONTRIBUTING.md",
+  "index.js",
+  "main.py",
+];
+
 export type RepoContext = {
   owner: string;
   repo: string;
@@ -43,6 +96,10 @@ export type RepoContext = {
   readmeTruncated: boolean;
   fileCount: number;
   commitCount: number;
+  /** Directories listed because the README alone was too thin. */
+  exploredDirs: string[];
+  /** Files read for the same reason. */
+  exploredFiles: string[];
 };
 
 /**
@@ -55,10 +112,21 @@ export type RepoContext = {
  * executed, and no tools are exposed.
  */
 export function buildChatInstructions(context: RepoContext): string {
+  const explored = [...context.exploredDirs, ...context.exploredFiles];
+  const extra =
+    explored.length > 0
+      ? `\nBecause the README was thin, you were also given the contents of: ${explored.join(", ")}. Use these — for a repository with little documentation they are often the best evidence of what it does and how it is built.`
+      : "";
+
+  const scopeNote =
+    context.exploredDirs.length > 0
+      ? `The file listing covers the top level, plus the directories named above. Anything deeper is not available.`
+      : `The file listing is the top level only. Subdirectory contents are not available, so do not describe files you cannot see.`;
+
   return `You answer questions about the GitHub repository ${context.owner}/${context.repo}.
 
 You have been given that repository's README, its top-level file listing, and its most
-recent commit messages. Answer only from that material.
+recent commit messages. Answer only from that material.${extra}
 
 Rules:
 - If the context does not contain the answer, say so plainly and state what you would need
@@ -66,8 +134,7 @@ Rules:
   is typical of similar projects.
 - Do not rely on anything you may recall about this repository from elsewhere. The context
   below is the only source of truth, and it may describe a version you do not recognise.
-- The file listing is the top level only. Subdirectory contents are not available, so do
-  not describe files you cannot see.
+- ${scopeNote}
 - Where the context is marked as truncated, say so rather than assuming the rest.
 - Be concise and concrete. Quote file names, commit messages and README wording where they
   support the answer.
@@ -130,6 +197,113 @@ function renderCommits(commits: GitHubCommit[]): string {
     .join("\n");
 }
 
+type Exploration = {
+  dirs: { path: string; entries: GitHubContentEntry[] }[];
+  files: { path: string; text: string; truncated: boolean }[];
+};
+
+/**
+ * Is the README doing enough work on its own?
+ *
+ * A one-line README plus a repo description is not a basis for answering questions, and
+ * neither is no README at all.
+ */
+function needsExploration(readme: GitHubReadme | null, meta: GitHubRepo): boolean {
+  const readmeChars = readme?.content.trim().length ?? 0;
+  if (readmeChars >= MIN_USEFUL_README_CHARS) return false;
+  // A substantial description can carry a short README, but not an absent one.
+  return readmeChars === 0 || (meta.description?.trim().length ?? 0) < 60;
+}
+
+/** Read the most informative directories and files the top level actually offers. */
+async function explore(
+  owner: string,
+  repo: string,
+  entries: GitHubContentEntry[],
+): Promise<Exploration> {
+  const dirNames = new Set(
+    entries.filter((e) => e.type === "dir").map((e) => e.name.toLowerCase()),
+  );
+  const fileNames = new Map(
+    entries.filter((e) => e.type === "file").map((e) => [e.name.toLowerCase(), e.name]),
+  );
+
+  const dirTargets = INTERESTING_DIRS.filter((d) => dirNames.has(d)).slice(
+    0,
+    MAX_EXPLORED_DIRS,
+  );
+  const fileTargets = INTERESTING_FILES.filter((f) => fileNames.has(f.toLowerCase()))
+    .map((f) => fileNames.get(f.toLowerCase()) as string)
+    .slice(0, MAX_EXPLORED_FILES);
+
+  // Exploration is best-effort: a failed probe must not take the chat down with it.
+  const [dirResults, fileResults] = await Promise.all([
+    Promise.all(
+      dirTargets.map(async (path) => {
+        try {
+          return { path, entries: await fetchRepoContents(owner, repo, path) };
+        } catch {
+          return null;
+        }
+      }),
+    ),
+    Promise.all(
+      fileTargets.map(async (path) => {
+        try {
+          const text = await fetchFile(owner, repo, path);
+          if (!text) return null;
+          const truncated = text.length > MAX_EXPLORED_FILE_CHARS;
+          return {
+            path,
+            text: truncated ? text.slice(0, MAX_EXPLORED_FILE_CHARS) : text,
+            truncated,
+          };
+        } catch {
+          return null;
+        }
+      }),
+    ),
+  ]);
+
+  return {
+    dirs: dirResults.filter((d): d is Exploration["dirs"][number] => d !== null),
+    files: fileResults.filter((f): f is Exploration["files"][number] => f !== null),
+  };
+}
+
+function renderExploration(exploration: Exploration): string[] {
+  if (exploration.dirs.length === 0 && exploration.files.length === 0) return [];
+
+  const lines = [
+    "",
+    "--- ADDITIONAL CONTEXT (gathered because the README alone was thin) ---",
+  ];
+
+  for (const dir of exploration.dirs) {
+    const shown = dir.entries.slice(0, MAX_EXPLORED_DIR_ENTRIES);
+    lines.push(
+      "",
+      `contents of ${dir.path}/ (${dir.entries.length} entries):`,
+      shown
+        .map((entry) => (entry.type === "dir" ? `${entry.name}/` : entry.name))
+        .join("\n"),
+    );
+    if (dir.entries.length > shown.length) {
+      lines.push(`[...and ${dir.entries.length - shown.length} more, not listed]`);
+    }
+  }
+
+  for (const file of exploration.files) {
+    lines.push(
+      "",
+      `contents of ${file.path}:`,
+      file.text + (file.truncated ? "\n[truncated here]" : ""),
+    );
+  }
+
+  return lines;
+}
+
 /**
  * Fetch and assemble everything the chat is grounded in.
  *
@@ -150,6 +324,11 @@ export async function loadRepoContext(
 
   const rendered = renderReadme(readme);
 
+  // Only spend the extra requests when the cheap sources fell short.
+  const exploration = needsExploration(readme, meta)
+    ? await explore(owner, repo, entries)
+    : { dirs: [], files: [] };
+
   const block = [
     "REPOSITORY CONTEXT",
     "===",
@@ -168,6 +347,7 @@ export async function loadRepoContext(
     "",
     `--- MOST RECENT COMMITS (${commits.length}) ---`,
     renderCommits(commits),
+    ...renderExploration(exploration),
     "===",
     "END REPOSITORY CONTEXT",
   ]
@@ -183,5 +363,7 @@ export async function loadRepoContext(
     readmeTruncated: rendered.truncated,
     fileCount: entries.length,
     commitCount: commits.length,
+    exploredDirs: exploration.dirs.map((dir) => `${dir.path}/`),
+    exploredFiles: exploration.files.map((file) => file.path),
   };
 }
