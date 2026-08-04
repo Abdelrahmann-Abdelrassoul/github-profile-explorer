@@ -94,6 +94,13 @@ interface RawContentEntry {
   size: number;
 }
 
+interface RawFile {
+  type: string;
+  encoding?: string;
+  content?: string;
+  size: number;
+}
+
 interface RawCommit {
   sha: string;
   commit: {
@@ -376,6 +383,44 @@ export async function fetchRepoContents(
     type: entry.type === "dir" ? "dir" : "file",
     size: entry.size,
   }));
+}
+
+/**
+ * Fetch and decode a single text file from a repo.
+ *
+ * Returns `null` rather than throwing when the file is absent, is a directory, or is too
+ * large for GitHub to inline — callers probe for files that may not exist, so a miss is an
+ * ordinary outcome. Genuine failures (rate limit, auth) still throw.
+ *
+ * GitHub omits the body and reports `encoding: "none"` above roughly 1 MB.
+ */
+export async function fetchFile(
+  owner: string,
+  repo: string,
+  path: string,
+): Promise<string | null> {
+  const encodedPath = path
+    .split("/")
+    .filter(Boolean)
+    .map(encodeURIComponent)
+    .join("/");
+
+  let raw: RawFile | RawFile[];
+  try {
+    raw = await githubFetch<RawFile | RawFile[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}`,
+      `File "${owner}/${repo}/${path}"`,
+    );
+  } catch (error) {
+    if (error instanceof GitHubError && error.kind === "not-found") return null;
+    throw error;
+  }
+
+  // An array means the path was a directory.
+  if (Array.isArray(raw) || raw.type !== "file") return null;
+  if (raw.encoding !== "base64" || !raw.content) return null;
+
+  return Buffer.from(raw.content, "base64").toString("utf-8");
 }
 
 /** Fetch the most recent commits on a repo's default branch, newest first. */

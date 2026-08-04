@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { FileText, Files, GitCommitHorizontal, GitFork, Star } from "lucide-react";
+import {
+  FileText,
+  Files,
+  FolderTree,
+  GitCommitHorizontal,
+  GitFork,
+  Star,
+} from "lucide-react";
 
 import type { RepoContext } from "@/lib/server/repo-context";
 import { formatCount, formatRelative } from "@/lib/format";
@@ -17,6 +24,7 @@ export function RepoHeading({ context }: { context: RepoContext }) {
   const { meta, owner, repo } = context;
   const updated = formatRelative(meta.updatedAt);
   const spine = languageColor(meta.language);
+  const explored = [...context.exploredDirs, ...context.exploredFiles];
 
   return (
     <header className="mb-6 overflow-hidden rounded-lg border border-border bg-card">
@@ -117,6 +125,14 @@ export function RepoHeading({ context }: { context: RepoContext }) {
           <GitCommitHorizontal aria-hidden className="size-3.5" />
           {context.commitCount} recent commits
         </span>
+
+        {/* Only present when the README was too thin to stand on its own. */}
+        {explored.length > 0 && (
+          <span className="flex items-center gap-1.5">
+            <FolderTree aria-hidden className="size-3.5" />
+            also read {explored.join(", ")}
+          </span>
+        )}
       </div>
     </header>
   );
