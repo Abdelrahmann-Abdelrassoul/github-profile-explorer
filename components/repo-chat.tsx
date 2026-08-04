@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, Square, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { clearChat, loadChat, saveChat } from "@/lib/chat-storage";
 import { cn } from "@/lib/utils";
 
 /**
@@ -38,8 +39,46 @@ export function RepoChat({ username, repo }: { username: string; repo: string })
   const endRef = useRef<HTMLDivElement | null>(null);
   /** Every question asked, so the model is told not to repeat itself. */
   const askedRef = useRef<string[]>([]);
+  /** Guards the save effect so restoring does not immediately write back. */
+  const restoredRef = useRef(false);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  /*
+   * Restore after mount, never during render: localStorage does not exist on the server,
+   * so seeding state from it would make the first client paint disagree with the
+   * server-rendered HTML.
+   */
+  useEffect(() => {
+    const stored = loadChat(username, repo);
+    if (stored.messages.length > 0) {
+      /*
+       * react-hooks/set-state-in-effect fires here, and this is the case the rule exempts:
+       * seeding from a client-only source after mount.
+       *
+       * useSyncExternalStore is the usual alternative, but it would make localStorage the
+       * source of truth for the transcript — and the transcript is appended to on every
+       * stream chunk, so that would mean a serialize-and-write per token. Reading once on
+       * mount and keeping the conversation in component state is the correct shape.
+       */
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMessages(stored.messages);
+      askedRef.current = stored.asked;
+      setSuggestions(stored.suggestions);
+    }
+    restoredRef.current = true;
+  }, [username, repo]);
+
+  // Persist whenever the conversation changes, but not while a reply is mid-stream —
+  // that would write a partial answer on every chunk.
+  useEffect(() => {
+    if (!restoredRef.current || streaming) return;
+    saveChat(username, repo, {
+      messages,
+      asked: askedRef.current,
+      suggestions,
+    });
+  }, [username, repo, messages, suggestions, streaming]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -150,10 +189,38 @@ export function RepoChat({ username, repo }: { username: string; repo: string })
     }
   }
 
+  /**
+   * Clearing matters more here than in a typical chat: history is fed back to the model,
+   * so an unwanted conversation keeps shaping later answers until it is removed.
+   * Immediate and local, so it needs no confirmation step.
+   */
+  function handleClear() {
+    abortRef.current?.abort();
+    clearChat(username, repo);
+    askedRef.current = [];
+    setMessages([]);
+    setSuggestions(OPENING_SUGGESTIONS);
+    setError(null);
+  }
+
   const showSuggestions = !streaming && suggestions.length > 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {messages.length > 0 && (
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={handleClear}
+          >
+            <Trash2 aria-hidden className="size-3.5" />
+            Clear chat
+          </Button>
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto" aria-live="polite">
         {messages.length === 0 && (
           <p className="text-sm leading-relaxed text-muted-foreground">
