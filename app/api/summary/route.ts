@@ -1,6 +1,7 @@
 import { streamText } from "ai";
 
-import { aiModel, isAiConfigured } from "@/lib/server/ai";
+import { AI_MAX_RETRIES, aiModel, isAiConfigured } from "@/lib/server/ai";
+import { describeAiFailure } from "@/lib/server/ai-errors";
 import { GitHubError, fetchUser, fetchUserRepos } from "@/lib/server/github";
 import { SUMMARY_SYSTEM_PROMPT, buildSummaryPrompt } from "@/lib/server/summary-prompt";
 
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
     // `system` is deprecated in ai@7 in favour of `instructions`.
     instructions: SUMMARY_SYSTEM_PROMPT,
     prompt,
+    maxRetries: AI_MAX_RETRIES,
     onError: ({ error }) => {
       providerError = error;
     },
@@ -97,7 +99,13 @@ export async function POST(request: Request) {
       }
     }
     console.error("AI summary failed", providerError);
-    return new Response(describeProviderError(providerError), { status: 502 });
+    const failure = describeAiFailure(providerError);
+    return new Response(failure.message, {
+      status: failure.status,
+      headers: failure.retryAfterSeconds
+        ? { "Retry-After": String(Math.ceil(failure.retryAfterSeconds)) }
+        : undefined,
+    });
   }
 
   const encoder = new TextEncoder();
@@ -130,21 +138,3 @@ export async function POST(request: Request) {
   });
 }
 
-/** Turn a provider rejection into something a reader can act on. */
-function describeProviderError(error: unknown): string {
-  const status =
-    typeof error === "object" && error !== null && "statusCode" in error
-      ? (error as { statusCode?: unknown }).statusCode
-      : undefined;
-
-  if (status === 401 || status === 403) {
-    return "The AI provider rejected the API key. Check that GROQ_API_KEY in .env.local is valid and has not been revoked.";
-  }
-  if (status === 404) {
-    return "The configured AI model is unavailable. Model IDs are retired periodically — check console.groq.com/docs/models.";
-  }
-  if (status === 429) {
-    return "The AI provider's rate limit was hit. Try again in a moment.";
-  }
-  return "The AI provider could not generate a summary. Try again in a moment.";
-}

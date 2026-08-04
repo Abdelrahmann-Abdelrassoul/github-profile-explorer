@@ -1,6 +1,7 @@
 import { streamText } from "ai";
 
-import { aiModel, isAiConfigured } from "@/lib/server/ai";
+import { AI_MAX_RETRIES, aiModel, isAiConfigured } from "@/lib/server/ai";
+import { describeAiFailure } from "@/lib/server/ai-errors";
 import { GitHubError } from "@/lib/server/github";
 import { buildChatInstructions, loadRepoContext } from "@/lib/server/repo-context";
 
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
     // `system` is deprecated in ai@7 in favour of `instructions`.
     instructions,
     messages,
+    maxRetries: AI_MAX_RETRIES,
     abortSignal: request.signal,
     onError: ({ error }) => {
       providerError = error;
@@ -115,8 +117,24 @@ export async function POST(request: Request) {
   }
 
   if (providerError || !first || (first.done && !first.value)) {
+    // onError can fire after the stream has already ended, so reading it immediately
+    // races and loses the reason — the difference between naming an exhausted daily
+    // allowance and shrugging. Let the run settle first.
+    if (!providerError) {
+      try {
+        await result.text;
+      } catch (error) {
+        providerError = error;
+      }
+    }
     console.error("Repo chat failed", providerError);
-    return new Response(describeProviderError(providerError), { status: 502 });
+    const failure = describeAiFailure(providerError);
+    return new Response(failure.message, {
+      status: failure.status,
+      headers: failure.retryAfterSeconds
+        ? { "Retry-After": String(Math.ceil(failure.retryAfterSeconds)) }
+        : undefined,
+    });
   }
 
   const encoder = new TextEncoder();
@@ -145,20 +163,3 @@ export async function POST(request: Request) {
   });
 }
 
-function describeProviderError(error: unknown): string {
-  const status =
-    typeof error === "object" && error !== null && "statusCode" in error
-      ? (error as { statusCode?: unknown }).statusCode
-      : undefined;
-
-  if (status === 401 || status === 403) {
-    return "The AI provider rejected the API key. Check that GROQ_API_KEY in .env.local is valid and has not been revoked.";
-  }
-  if (status === 404) {
-    return "The configured AI model is unavailable. Model IDs are retired periodically — check console.groq.com/docs/models.";
-  }
-  if (status === 429) {
-    return "The AI provider's rate limit was hit. Try again in a moment.";
-  }
-  return "The AI provider could not answer. Try again in a moment.";
-}

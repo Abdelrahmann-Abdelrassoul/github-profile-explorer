@@ -1,8 +1,8 @@
 import { generateText } from "ai";
 
-import { aiModel, isAiConfigured } from "@/lib/server/ai";
+import { AI_MAX_RETRIES, aiSmallModel, isAiConfigured } from "@/lib/server/ai";
 import { GitHubError } from "@/lib/server/github";
-import { loadRepoContext } from "@/lib/server/repo-context";
+import { buildSuggestionContext, loadRepoContext } from "@/lib/server/repo-context";
 
 /**
  * Proposes follow-up questions after a reply.
@@ -150,12 +150,15 @@ export async function POST(request: Request) {
         : "";
 
     const { text } = await generateText({
-      model: aiModel(),
+      model: aiSmallModel(),
+      maxRetries: AI_MAX_RETRIES,
       instructions: buildInstructions([
         ...context.exploredDirs,
         ...context.exploredFiles,
       ]),
-      prompt: `${context.block}\n\nCONVERSATION SO FAR:\n${transcript}${alreadyAsked}`,
+      // Abridged, not the full grounding block: this call previously resent the entire
+      // README, roughly doubling what each exchange cost against the daily budget.
+      prompt: `${buildSuggestionContext(context)}\n\nCONVERSATION SO FAR:\n${transcript}${alreadyAsked}`,
     });
 
     return Response.json({ questions: parseQuestions(text, asked) });
