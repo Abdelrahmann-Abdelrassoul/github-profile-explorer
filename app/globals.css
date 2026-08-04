@@ -133,6 +133,37 @@
   }
 }
 
+/*
+ * Lock document scrolling on the repo chat, which manages its own height.
+ *
+ * Scoped with :has() so it applies to that route alone without a client component or a
+ * body-class effect. Necessary because the root layout sizes html with `h-full` and body
+ * with `min-h-full`, and those percentages resolve against the large viewport — so the
+ * document stays taller than the visible area and scrolls behind the fixed shell whenever
+ * the pointer is somewhere that does not scroll itself.
+ */
+html:has([data-chat-shell]),
+body:has([data-chat-shell]) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/*
+ * Hide a scrollbar while keeping the region scrollable by wheel, touch and keyboard.
+ * Tailwind has no built-in utility for this.
+ *
+ * Used only where an enclosing frame already signals that the area scrolls — the chat
+ * transcript sits between a pinned header and composer. Don't reach for it on ordinary
+ * page content, where the scrollbar is the only cue that more exists below.
+ */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

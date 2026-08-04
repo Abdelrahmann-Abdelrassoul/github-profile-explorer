@@ -208,7 +208,7 @@ export function RepoChat({ username, repo }: { username: string; repo: string })
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {messages.length > 0 && (
-        <div className="flex justify-end">
+        <div className="flex shrink-0 justify-end">
           <Button
             variant="ghost"
             size="sm"
@@ -221,7 +221,15 @@ export function RepoChat({ username, repo }: { username: string; repo: string })
         </div>
       )}
 
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto" aria-live="polite">
+      {/*
+        The only scrollable region on this route. `min-h-0` is load-bearing: without it a
+        flex child refuses to shrink below its content, so the transcript would push the
+        composer off-screen instead of scrolling.
+      */}
+      <div
+        className="no-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain"
+        aria-live="polite"
+      >
         {messages.length === 0 && (
           <p className="text-sm leading-relaxed text-muted-foreground">
             Ask about this repository. Answers come from its README, top-level files and
@@ -260,13 +268,16 @@ export function RepoChat({ username, repo }: { username: string; repo: string })
       </div>
 
       {error && (
-        <p role="alert" className="text-sm leading-relaxed text-muted-foreground">
+        <p
+          role="alert"
+          className="shrink-0 text-sm leading-relaxed text-muted-foreground"
+        >
           {error}
         </p>
       )}
 
       <form
-        className="flex gap-2 border-t border-border pt-4"
+        className="flex shrink-0 gap-2 border-t border-border pt-4"
         onSubmit={(event) => {
           event.preventDefault();
           void send(input);

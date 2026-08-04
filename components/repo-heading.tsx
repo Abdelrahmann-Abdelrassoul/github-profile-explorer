@@ -27,7 +27,7 @@ export function RepoHeading({ context }: { context: RepoContext }) {
   const explored = [...context.exploredDirs, ...context.exploredFiles];
 
   return (
-    <header className="mb-6 overflow-hidden rounded-lg border border-border bg-card">
+    <header className="mb-4 shrink-0 overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex gap-4 p-4">
         <span
           aria-hidden
