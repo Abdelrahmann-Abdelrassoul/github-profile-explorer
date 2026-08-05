@@ -72,21 +72,60 @@ export default async function ProfilePage({
   return (
     <>
       <ProfileNav login={login} />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
+      {/* Wider only on large screens, since two columns need more room than the 48rem
+          reading measure the rest of the app uses. */}
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10 lg:max-w-6xl">
         {result.ok ? (
           <div className="space-y-10">
             <ProfileHeader user={result.user} repos={result.repos} />
-            <NotesPanel
-              subject={{ kind: "user", login: result.user.login }}
-              label={`@${result.user.login}`}
-            />
-            <ProfileSummary username={result.user.login} />
-            <CompareForm username={result.user.login} />
-            <RepoList
-              repos={result.repos}
-              username={result.user.login}
-              showAll={showAllRepos}
-            />
+
+            {/*
+             * Notes, summary and compare used to sit between the profile and the
+             * repositories, pushing the repo list below three panels. They move to a
+             * sidebar so the repositories start immediately.
+             *
+             * The sidebar is first in the DOM so a narrow screen — where the grid
+             * collapses to one column — keeps the original reading order. Explicit
+             * column placement puts it on the right once there is room, without
+             * reordering the markup.
+             */}
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+              <aside className="lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1">
+                {/*
+                 * The repository column opens with its "Repositories" heading, so without
+                 * this the rail's first card sits a heading's height higher than the first
+                 * repository card and the two columns read as misaligned.
+                 *
+                 * An empty line box with the heading's own type classes matches that height
+                 * however the type scale changes later, which a hardcoded padding value
+                 * would not. Hidden below `lg`, where the columns are stacked and there is
+                 * nothing to align to.
+                 */}
+                <div
+                  aria-hidden
+                  className="mb-4 hidden font-heading text-lg font-semibold lg:block"
+                >
+                  &nbsp;
+                </div>
+
+                <div className="space-y-6">
+                  <NotesPanel
+                    subject={{ kind: "user", login: result.user.login }}
+                    label={`@${result.user.login}`}
+                  />
+                  <ProfileSummary username={result.user.login} />
+                  <CompareForm username={result.user.login} />
+                </div>
+              </aside>
+
+              <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+                <RepoList
+                  repos={result.repos}
+                  username={result.user.login}
+                  showAll={showAllRepos}
+                />
+              </div>
+            </div>
           </div>
         ) : (
           <DataError kind={result.error.kind} resetAt={result.error.resetAt} />

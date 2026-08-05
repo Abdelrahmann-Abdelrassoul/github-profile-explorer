@@ -60,20 +60,31 @@ export default async function RepoChatPage({ params }: ChatPageProps) {
   return (
     <>
       <ChatNav owner={owner} repo={name} />
-      <main className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col px-6 pt-6 pb-4">
+      {/*
+       * One column on narrow screens, in the original order. On large screens the
+       * repository card and notes move to a right-hand rail so the conversation gets the
+       * width, and the aside is first in the DOM so the narrow order needs no reordering.
+       *
+       * The rail scrolls independently: this route's height is fixed, and an expanded
+       * note plus the repository card can exceed it on a short viewport.
+       */}
+      <main className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col gap-4 px-6 pt-6 pb-4 lg:max-w-6xl lg:flex-row lg:gap-6">
         {result.ok ? (
           <>
-            <RepoHeading context={result.context} />
-            {/* Collapsed by default — this route's height is fixed, and the transcript
-                should keep the space rather than a textarea that is usually idle. */}
-            <div className="mb-4 shrink-0">
+            <aside className="no-scrollbar shrink-0 space-y-4 lg:order-2 lg:w-[22rem] lg:min-h-0 lg:overflow-y-auto">
+              <RepoHeading context={result.context} />
+              {/* Collapsed by default: the transcript should keep the space rather than a
+                  textarea that is usually idle. */}
               <NotesPanel
                 subject={{ kind: "repo", owner, repo: name }}
                 label={`${owner}/${name}`}
-                collapsible
+                defaultOpen={false}
               />
+            </aside>
+
+            <div className="flex min-h-0 flex-1 flex-col lg:order-1">
+              <RepoChat username={owner} repo={name} />
             </div>
-            <RepoChat username={owner} repo={name} />
           </>
         ) : (
           <DataError kind={result.error.kind} resetAt={result.error.resetAt} />

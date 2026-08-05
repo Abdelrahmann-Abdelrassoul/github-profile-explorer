@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
   saveNote,
   type NoteSubject,
 } from "@/lib/notes-storage";
+import { cn } from "@/lib/utils";
 
 /**
  * A note about a profile or a repository.
@@ -27,21 +28,22 @@ type Status = "idle" | "saving" | "saved";
 export function NotesPanel({
   subject,
   label,
-  collapsible = false,
+  defaultOpen = true,
 }: {
   subject: NoteSubject;
   /** What the note is about, for the heading and the textarea's accessible name. */
   label: string;
   /**
-   * Start collapsed behind a toggle. Used on the chat page, whose height is fixed so that
-   * only the transcript scrolls — a permanent textarea there would take that space from
-   * the conversation. A marker shows when a note already exists, so it stays discoverable.
+   * Whether the note starts expanded. Collapsed on the chat page, whose height is fixed so
+   * that only the transcript scrolls — a textarea that is usually idle should not take that
+   * space from the conversation. A marker shows when a note exists either way, so a
+   * collapsed panel is never mistaken for an empty one.
    */
-  collapsible?: boolean;
+  defaultOpen?: boolean;
 }) {
   const [body, setBody] = useState("");
   const [status, setStatus] = useState<Status>("idle");
-  const [open, setOpen] = useState(!collapsible);
+  const [open, setOpen] = useState(defaultOpen);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Stops the restore from immediately scheduling a save of what was just read. */
@@ -96,27 +98,32 @@ export function NotesPanel({
       aria-labelledby="notes-heading"
       className="shrink-0 rounded-lg border border-border bg-card p-4"
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="notes-heading" className="font-heading text-sm font-semibold">
-          {collapsible ? (
-            <button
-              type="button"
-              onClick={() => setOpen((current) => !current)}
-              aria-expanded={open}
-              aria-controls="note-body"
-              className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Your notes
-              {/* Without this a saved note is invisible while collapsed. */}
-              {hasNote && !open && (
-                <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">
-                  1 saved
-                </span>
+          <button
+            type="button"
+            onClick={() => setOpen((current) => !current)}
+            aria-expanded={open}
+            aria-controls="notes-body"
+            className="flex items-center gap-1.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {/* The arrow is the affordance; it points down when open, right when closed. */}
+            <ChevronDown
+              aria-hidden
+              className={cn(
+                "size-4 text-muted-foreground transition-transform",
+                !open && "-rotate-90",
               )}
-            </button>
-          ) : (
-            "Your notes"
-          )}
+            />
+            Your notes
+            {/* Without this a saved note is invisible while collapsed. */}
+            {hasNote && !open && (
+              <span className="font-mono text-xs font-normal text-muted-foreground">
+                1 saved
+              </span>
+            )}
+            <span className="sr-only">{open ? " (collapse)" : " (expand)"}</span>
+          </button>
         </h2>
 
         <div className="flex items-center gap-3">
@@ -139,7 +146,7 @@ export function NotesPanel({
       </div>
 
       {open && (
-        <>
+        <div id="notes-body">
           <p className="mt-1 text-xs text-muted-foreground">
             Kept in this browser and shown on the home page. Saves as you type.
           </p>
@@ -151,11 +158,11 @@ export function NotesPanel({
             id="note-body"
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            rows={collapsible ? 3 : 4}
+            rows={4}
             placeholder={`Anything worth remembering about ${label}...`}
             className="mt-3 w-full resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
-        </>
+        </div>
       )}
     </section>
   );
