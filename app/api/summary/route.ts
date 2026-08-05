@@ -2,6 +2,7 @@ import { streamText } from "ai";
 
 import { AI_MAX_RETRIES, aiModel, isAiConfigured } from "@/lib/server/ai";
 import { describeAiFailure } from "@/lib/server/ai-errors";
+import { streamWithFallback } from "@/lib/server/ai-fallback";
 import { GitHubError, fetchUser, fetchUserRepos } from "@/lib/server/github";
 import { SUMMARY_SYSTEM_PROMPT, buildSummaryPrompt } from "@/lib/server/summary-prompt";
 
@@ -66,40 +67,20 @@ export async function POST(request: Request) {
    * is a failure regardless of whether an error was reported. The happy path only waits
    * for the first token, so streaming is preserved.
    */
-  let providerError: unknown = null;
+  const run = await streamWithFallback((modelId, onError) =>
+    streamText({
+      model: aiModel(modelId),
+      // `system` is deprecated in ai@7 in favour of `instructions`.
+      instructions: SUMMARY_SYSTEM_PROMPT,
+      prompt,
+      maxRetries: AI_MAX_RETRIES,
+      onError: ({ error }) => onError(error),
+    }),
+  );
 
-  const result = streamText({
-    model: aiModel(),
-    // `system` is deprecated in ai@7 in favour of `instructions`.
-    instructions: SUMMARY_SYSTEM_PROMPT,
-    prompt,
-    maxRetries: AI_MAX_RETRIES,
-    onError: ({ error }) => {
-      providerError = error;
-    },
-  });
-
-  const iterator = result.textStream[Symbol.asyncIterator]();
-  let first: IteratorResult<string> | undefined;
-  try {
-    first = await iterator.next();
-  } catch (error) {
-    providerError = error;
-  }
-
-  if (providerError || !first || (first.done && !first.value)) {
-    // onError can fire after the stream has already ended, so reading it straight away
-    // races and loses the reason — which is the difference between telling someone their
-    // API key was rejected and shrugging at them. Wait for the run to settle first.
-    if (!providerError) {
-      try {
-        await result.text;
-      } catch (error) {
-        providerError = error;
-      }
-    }
-    console.error("AI summary failed", providerError);
-    const failure = describeAiFailure(providerError);
+  if (!run.ok) {
+    console.error("AI summary failed", run.error);
+    const failure = describeAiFailure(run.error);
     return new Response(failure.message, {
       status: failure.status,
       headers: failure.retryAfterSeconds
@@ -107,6 +88,8 @@ export async function POST(request: Request) {
         : undefined,
     });
   }
+
+  const { first, iterator } = run;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

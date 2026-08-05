@@ -2,6 +2,7 @@ import { streamText } from "ai";
 
 import { AI_MAX_RETRIES, aiModel, isAiConfigured } from "@/lib/server/ai";
 import { describeAiFailure } from "@/lib/server/ai-errors";
+import { streamWithFallback } from "@/lib/server/ai-fallback";
 import { GitHubError } from "@/lib/server/github";
 import { buildChatInstructions, loadRepoContext } from "@/lib/server/repo-context";
 
@@ -88,47 +89,21 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  let providerError: unknown = null;
+  const run = await streamWithFallback((modelId, onError) =>
+    streamText({
+      model: aiModel(modelId),
+      // `system` is deprecated in ai@7 in favour of `instructions`.
+      instructions,
+      messages,
+      maxRetries: AI_MAX_RETRIES,
+      abortSignal: request.signal,
+      onError: ({ error }) => onError(error),
+    }),
+  );
 
-  const result = streamText({
-    model: aiModel(),
-    // `system` is deprecated in ai@7 in favour of `instructions`.
-    instructions,
-    messages,
-    maxRetries: AI_MAX_RETRIES,
-    abortSignal: request.signal,
-    onError: ({ error }) => {
-      providerError = error;
-    },
-  });
-
-  /*
-   * Same shape as the summary route, for the same reason: streamText neither throws nor
-   * reports provider failures through the text stream — the stream just ends empty, which
-   * would otherwise be a 200 with a blank reply. Pull the first chunk before committing to
-   * a status code.
-   */
-  const iterator = result.textStream[Symbol.asyncIterator]();
-  let first: IteratorResult<string> | undefined;
-  try {
-    first = await iterator.next();
-  } catch (error) {
-    providerError = error;
-  }
-
-  if (providerError || !first || (first.done && !first.value)) {
-    // onError can fire after the stream has already ended, so reading it immediately
-    // races and loses the reason — the difference between naming an exhausted daily
-    // allowance and shrugging. Let the run settle first.
-    if (!providerError) {
-      try {
-        await result.text;
-      } catch (error) {
-        providerError = error;
-      }
-    }
-    console.error("Repo chat failed", providerError);
-    const failure = describeAiFailure(providerError);
+  if (!run.ok) {
+    console.error("Repo chat failed", run.error);
+    const failure = describeAiFailure(run.error);
     return new Response(failure.message, {
       status: failure.status,
       headers: failure.retryAfterSeconds
@@ -136,6 +111,8 @@ export async function POST(request: Request) {
         : undefined,
     });
   }
+
+  const { first, iterator } = run;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
