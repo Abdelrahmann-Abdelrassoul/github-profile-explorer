@@ -1,6 +1,6 @@
 import { streamText } from "ai";
 
-import { AI_MAX_RETRIES, aiModel, isAiConfigured } from "@/lib/server/ai";
+import { AI_MAX_RETRIES, isAiConfigured } from "@/lib/server/ai";
 import { describeAiFailure } from "@/lib/server/ai-errors";
 import { streamWithFallback } from "@/lib/server/ai-fallback";
 import { GitHubError, fetchUser, fetchUserRepos } from "@/lib/server/github";
@@ -67,9 +67,9 @@ export async function POST(request: Request) {
    * is a failure regardless of whether an error was reported. The happy path only waits
    * for the first token, so streaming is preserved.
    */
-  const run = await streamWithFallback((modelId, onError) =>
+  const run = await streamWithFallback((model, onError) =>
     streamText({
-      model: aiModel(modelId),
+      model,
       // `system` is deprecated in ai@7 in favour of `instructions`.
       instructions: SUMMARY_SYSTEM_PROMPT,
       prompt,
