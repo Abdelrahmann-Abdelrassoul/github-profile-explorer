@@ -18,6 +18,14 @@ export type AiFailure = {
   status: number;
   /** Seconds until it is worth retrying, when the provider tells us. */
   retryAfterSeconds?: number;
+  /**
+   * The provider's own status, before it was mapped to something a reader sees.
+   *
+   * Needed because the mapping is lossy in exactly the place the chain runner cares
+   * about: a 404 (retired model id) is reported to the reader as a 502, so `status`
+   * cannot distinguish it from a generic provider failure. Not for display.
+   */
+  providerStatus?: number;
 };
 
 /** "about 18 minutes", "about 40 seconds" — precision here is false comfort. */
@@ -79,7 +87,12 @@ function describeRateLimit(body: string, retryAfterSeconds?: number): string {
 
 export function describeAiFailure(error: unknown): AiFailure {
   const inner = unwrap(error);
+  // Classification is unchanged; the raw status rides alongside it rather than through it,
+  // so nothing that reads `message` or `status` behaves differently.
+  return { ...classify(inner), providerStatus: inner ? readStatus(inner) : undefined };
+}
 
+function classify(inner: Record<string, unknown> | null): Omit<AiFailure, "providerStatus"> {
   if (!inner) {
     return { message: "The AI service could not be reached. Try again in a moment.", status: 502 };
   }

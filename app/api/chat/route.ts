@@ -1,6 +1,6 @@
 import { streamText } from "ai";
 
-import { AI_MAX_RETRIES, aiModel, isAiConfigured } from "@/lib/server/ai";
+import { AI_MAX_RETRIES, isAiConfigured } from "@/lib/server/ai";
 import { describeAiFailure } from "@/lib/server/ai-errors";
 import { streamWithFallback } from "@/lib/server/ai-fallback";
 import { GitHubError } from "@/lib/server/github";
@@ -89,9 +89,9 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  const run = await streamWithFallback((modelId, onError) =>
+  const run = await streamWithFallback((model, onError) =>
     streamText({
-      model: aiModel(modelId),
+      model,
       // `system` is deprecated in ai@7 in favour of `instructions`.
       instructions,
       messages,
