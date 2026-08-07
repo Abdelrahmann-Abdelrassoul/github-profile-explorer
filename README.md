@@ -2,7 +2,7 @@
 
 GitHub Profile Explorer is a Next.js application for searching GitHub users, browsing a profile and its repositories, comparing two users side by side, generating an AI summary of a profile, chatting with an AI grounded in a specific repository's real data, and saving personal notes on profiles and repos. It is a take-home style deliverable, judged primarily on code quality and error handling.
 
-**Live demo:** _(link to be added once deployed)_
+**Live demo:** <https://github-profile-explorer-delta-two.vercel.app/>
 
 ## Features
 

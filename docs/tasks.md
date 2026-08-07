@@ -18,4 +18,7 @@ approve, implement, review the diff, commit, then move to the next.
 - [x] 6. Chat history persistence (localStorage, per repo)
 - [x] 7. Notes feature (profiles + repos), localStorage, shown on load
 - [ ] 8. Polish pass: error boundaries, empty states, basic responsive layout
-- [ ] 9. README (setup, env vars, persistence decision, demo link) + deploy to Vercel
+- [x] 9. README (setup, env vars, persistence decision, demo link) + deploy to Vercel
+      (live at https://github-profile-explorer-delta-two.vercel.app/ — profile pages,
+      streaming summary, grounded chat and the 404/400 error paths all verified against
+      the production deployment)
